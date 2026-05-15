@@ -41,6 +41,32 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export interface DoctorPatient {
+  id: string;
+  user: PrescriptionUser;
+  prescriptionCount: number;
+  lastPrescriptionAt: string | null;
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface Appointment {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientEmail: string;
+  scheduledAt: string;
+  type: string;
+  status: "scheduled" | "completed" | "cancelled";
+  notes?: string | null;
+}
+
 export interface AdminMetricsResponse {
   totals?: {
     doctors?: number;

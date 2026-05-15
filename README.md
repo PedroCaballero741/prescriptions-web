@@ -36,6 +36,7 @@ npm run dev
 npm run build
 npm run start
 npm run lint
+npm test
 ```
 
 ## Páginas mínimas esperadas
@@ -58,9 +59,18 @@ npm run lint
 
 ## Integración con API
 
-Este frontend consume la API del repo backend:
+Este frontend consume la API del repo backend (`prescriptions-api`):
 
-- Auth: `/auth/login`, `/auth/refresh`, `/auth/profile`
-- Prescripciones doctor/patient
-- Métricas admin
-- Descarga de PDF de prescripción
+- Auth: `/auth/login`, `/auth/register`, `/auth/refresh`, `/auth/profile`
+- Médico: `/prescriptions` (CRUD de emisión y listados con filtros en query)
+- Paciente: `/me/prescriptions`, consume, PDF
+- Admin: `/admin/metrics`, `/admin/prescriptions`, `/users`, directorios `/patients` y `/doctors` según pantalla
+
+### Despliegue
+
+Tras publicar front y API, conviene indicar aquí las URLs públicas (por ejemplo Vercel + Railway/Render).
+
+Ejemplo de plantilla:
+
+- Front: `https://…`
+- API: `https://…`

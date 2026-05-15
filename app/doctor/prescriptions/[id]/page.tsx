@@ -1,9 +1,10 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RolePageShell } from "@/components/role-page-shell";
+import { Avatar, Badge, Icon, fmtDate, fmtDateTime, relTime } from "@/components/ui";
 import { ApiError, apiRequest, apiRequestRaw } from "@/lib/http-client";
 import { Prescription } from "@/lib/prescriptions";
 
@@ -11,7 +12,7 @@ export default function DoctorPrescriptionDetailPage() {
   return (
     <RolePageShell
       title="Prescription detail"
-      description="Review prescription information"
+      crumbs={["Doctor", "Prescriptions"]}
       expectedRole="doctor"
     >
       <DoctorPrescriptionDetailContent />
@@ -21,6 +22,7 @@ export default function DoctorPrescriptionDetailPage() {
 
 function DoctorPrescriptionDetailContent() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params.id;
   const [prescription, setPrescription] = useState<Prescription | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,15 +31,10 @@ function DoctorPrescriptionDetailContent() {
 
   useEffect(() => {
     if (!id) return;
-
     apiRequest<Prescription>(`/prescriptions/${id}`, { method: "GET" }, { auth: true })
       .then((data) => setPrescription(data))
-      .catch((requestError) => {
-        setError(
-          requestError instanceof ApiError
-            ? requestError.message
-            : "Could not load prescription detail.",
-        );
+      .catch((err) => {
+        setError(err instanceof ApiError ? err.message : "Could not load prescription detail.");
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -46,7 +43,6 @@ function DoctorPrescriptionDetailContent() {
     if (!prescription) return;
     setDownloading(true);
     setError(null);
-
     try {
       const res = await apiRequestRaw(
         `/prescriptions/${prescription.id}/pdf`,
@@ -55,10 +51,9 @@ function DoctorPrescriptionDetailContent() {
       );
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      const contentDisposition = res.headers.get("Content-Disposition") ?? "";
-      const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const cd = res.headers.get("Content-Disposition") ?? "";
+      const match = cd.match(/filename="?([^"]+)"?/i);
       const filename = match?.[1] ?? `prescription-${prescription.code}.pdf`;
-
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = filename;
@@ -67,11 +62,8 @@ function DoctorPrescriptionDetailContent() {
       anchor.remove();
       window.URL.revokeObjectURL(url);
       toast.success("PDF downloaded.");
-    } catch (downloadError) {
-      const message =
-        downloadError instanceof ApiError
-          ? downloadError.message
-          : "Could not download PDF.";
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "Could not download PDF.";
       setError(message);
       toast.error(message);
     } finally {
@@ -80,59 +72,184 @@ function DoctorPrescriptionDetailContent() {
   };
 
   if (loading) {
-    return <p className="text-sm text-zinc-600">Loading prescription...</p>;
+    return (
+      <div className="empty">
+        <p>Loading prescription…</p>
+      </div>
+    );
   }
 
-  if (error) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>;
+  if (error && !prescription) {
+    return <div className="alert-error">{error}</div>;
   }
 
   if (!prescription) {
-    return <p className="rounded border border-zinc-200 bg-white p-4 text-sm text-zinc-600">Prescription not found.</p>;
+    return (
+      <div className="card">
+        <div className="empty">
+          <div className="empty-icon"><Icon name="inbox" size={26} /></div>
+          <h3>Prescription not found</h3>
+        </div>
+      </div>
+    );
   }
 
+  const totalQty = prescription.items.reduce((s, i) => s + (i.quantity ?? 0), 0);
+
   return (
-    <section className="space-y-4 rounded border border-zinc-200 bg-white p-4 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-lg font-medium">{prescription.code}</p>
-          <p className="text-zinc-600">Status: {prescription.status}</p>
+    <div className="stack-lg">
+      {/* Header */}
+      <div className="row-wrap" style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+        <div style={{ minWidth: 0 }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => router.push("/doctor/prescriptions")}
+            style={{ marginBottom: 10, paddingLeft: 0 }}
+          >
+            <Icon name="arrowLeft" /> Back to prescriptions
+          </button>
+          <div className="row" style={{ gap: 12, alignItems: "center", marginBottom: 8 }}>
+            <h2 className="page-h1 mono" style={{ fontSize: 26, marginBottom: 0 }}>
+              {prescription.code}
+            </h2>
+            <Badge status={prescription.status} dot />
+          </div>
+          <p className="page-sub" style={{ margin: 0 }}>
+            Issued {fmtDateTime(prescription.createdAt)}
+          </p>
         </div>
-        <button
-          type="button"
-          disabled={downloading}
-          onClick={downloadPdf}
-          className="rounded bg-zinc-900 px-3 py-1.5 text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-500"
-        >
-          {downloading ? "Downloading..." : "Download PDF"}
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            className="btn btn-primary"
+            onClick={downloadPdf}
+            disabled={downloading}
+          >
+            <Icon name="download" /> {downloading ? "Preparing…" : "Download PDF"}
+          </button>
+        </div>
       </div>
 
-      <p>
-        <strong>Patient:</strong> {prescription.patient.user.name} ({prescription.patient.user.email})
-      </p>
-      <p>
-        <strong>Created at:</strong> {new Date(prescription.createdAt).toLocaleString()}
-      </p>
-      {prescription.notes && (
-        <p>
-          <strong>Notes:</strong> {prescription.notes}
-        </p>
-      )}
+      {error && <div className="alert-error">{error}</div>}
 
-      <div>
-        <p className="mb-2 font-medium">Items</p>
-        <ul className="space-y-2">
-          {prescription.items.map((item) => (
-            <li key={item.id} className="rounded border border-zinc-200 p-3">
-              <p className="font-medium">{item.name}</p>
-              <p className="text-zinc-600">Dosage: {item.dosage || "-"}</p>
-              <p className="text-zinc-600">Quantity: {item.quantity ?? "-"}</p>
-              <p className="text-zinc-600">Instructions: {item.instructions || "-"}</p>
-            </li>
-          ))}
-        </ul>
+      <div className="rx-detail-grid">
+        {/* Main column */}
+        <div className="stack-lg" style={{ minWidth: 0 }}>
+          {/* Items table */}
+          <div className="card" style={{ overflow: "hidden" }}>
+            <div className="card-head">
+              <h2 className="card-title">Medications · {prescription.items.length}</h2>
+              <span className="tight">Total qty: {totalQty}</span>
+            </div>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Medication</th>
+                  <th>Dosage</th>
+                  <th className="num">Qty</th>
+                  <th>Instructions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prescription.items.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <div className="row" style={{ gap: 10 }}>
+                        <div
+                          className="empty-icon"
+                          style={{ width: 32, height: 32, borderRadius: 8 }}
+                        >
+                          <Icon name="pill" size={16} />
+                        </div>
+                        <div style={{ fontWeight: 600 }}>{item.name}</div>
+                      </div>
+                    </td>
+                    <td><span className="mono">{item.dosage || "—"}</span></td>
+                    <td className="num mono">{item.quantity ?? "—"}</td>
+                    <td className="tight" style={{ maxWidth: 320 }}>{item.instructions || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {prescription.notes && (
+            <div className="card">
+              <div className="card-head"><h2 className="card-title">Notes for patient</h2></div>
+              <div className="card-body" style={{ color: "var(--ink-2)" }}>{prescription.notes}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Side rail */}
+        <div className="stack" style={{ position: "sticky", top: 92 }}>
+          {/* Patient card */}
+          <div className="card">
+            <div className="card-body">
+              <div
+                className="tight"
+                style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}
+              >
+                Patient
+              </div>
+              <div className="row" style={{ gap: 12 }}>
+                <Avatar name={prescription.patient.user.name} size="lg" />
+                <div>
+                  <div style={{ fontWeight: 600 }}>{prescription.patient.user.name}</div>
+                  <div className="tight">{prescription.patient.user.email}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Activity timeline */}
+          <div className="card">
+            <div className="card-body">
+              <div
+                className="tight"
+                style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 12 }}
+              >
+                Activity
+              </div>
+              <div className="timeline">
+                <div className="tl-item">
+                  <div className="tl-dot accent"><Icon name="filePlus" size={14} /></div>
+                  <div>
+                    <div className="tl-meta">
+                      <strong>Issued</strong>
+                      <time>{relTime(prescription.createdAt)}</time>
+                    </div>
+                    <div className="tl-body">by {prescription.author.user.name}</div>
+                  </div>
+                </div>
+
+                {prescription.consumedAt ? (
+                  <div className="tl-item">
+                    <div className="tl-dot success"><Icon name="check" size={14} /></div>
+                    <div>
+                      <div className="tl-meta">
+                        <strong>Consumed</strong>
+                        <time>{relTime(prescription.consumedAt)}</time>
+                      </div>
+                      <div className="tl-body">Patient confirmed fill</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="tl-item">
+                    <div className="tl-dot"><Icon name="clock" size={14} /></div>
+                    <div>
+                      <div className="tl-meta">
+                        <strong>Awaiting fill</strong>
+                        <time>—</time>
+                      </div>
+                      <div className="tl-body">Pending patient pickup</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
