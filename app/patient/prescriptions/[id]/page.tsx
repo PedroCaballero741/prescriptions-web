@@ -57,7 +57,7 @@ function PatientPrescriptionDetailContent() {
   }
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 880 }}>
+    <div className="stack-lg">
       {/* Header */}
       <div>
         <button

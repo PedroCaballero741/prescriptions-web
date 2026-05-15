@@ -40,7 +40,7 @@ function PatientProfileContent() {
   }
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 640 }}>
+    <div className="stack-lg">
       <div>
         <p className="page-sub">
           Your personal information and account details.

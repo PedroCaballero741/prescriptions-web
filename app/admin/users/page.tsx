@@ -146,7 +146,7 @@ function AdminUsersContent() {
   const totalPages = meta?.totalPages ?? 1;
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 960 }}>
+    <div className="stack-lg">
       <div className="page-head" style={{ marginBottom: 0 }}>
         <p className="page-sub">Directory backed by <code className="mono" style={{ fontSize: 12 }}>GET /users</code> and <code className="mono" style={{ fontSize: 12 }}>POST /users</code>.</p>
         <button type="button" className="btn btn-primary" onClick={() => setCreateOpen((o) => !o)}>

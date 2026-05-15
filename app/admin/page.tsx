@@ -132,13 +132,13 @@ function AdminDashboardContent() {
           </div>
 
           {/* Charts */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
+          <div className="grid-charts">
             {/* Bar chart */}
             <div className="card">
               <div className="card-head">
                 <h2 className="card-title">Prescriptions issued · daily</h2>
               </div>
-              <div className="card-body" style={{ padding: "12px 12px 8px" }}>
+              <div className="card-body" style={{ paddingTop: 12, paddingBottom: 8 }}>
                 {byDay.length > 0 ? (
                   <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={byDay} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>

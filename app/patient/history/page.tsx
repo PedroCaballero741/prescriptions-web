@@ -43,7 +43,7 @@ function PatientHistoryContent() {
   }, []);
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 880 }}>
+    <div className="stack-lg">
       <div>
         <p className="page-sub">
           A complete record of every prescription you have filled.

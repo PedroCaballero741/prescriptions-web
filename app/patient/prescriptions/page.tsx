@@ -144,7 +144,7 @@ function PatientPrescriptionsContent() {
   const pendingOnPage = prescriptions.filter((p) => p.status === "pending").length;
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 880 }}>
+    <div className="stack-lg">
       <div className="row-wrap" style={{ justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
         <div>
           <p className="page-sub">
