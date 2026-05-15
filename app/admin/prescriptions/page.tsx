@@ -31,11 +31,13 @@ function AdminPrescriptionsContent() {
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [patientId, setPatientId] = useState(() => searchParams.get("patientId") ?? "");
   const [doctorId, setDoctorId] = useState(() => searchParams.get("doctorId") ?? "");
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [total, setTotal] = useState(0);
+  const [response, setResponse] = useState<PaginatedResponse<Prescription> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const page = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
+  const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "20") || 20));
 
   useEffect(() => {
     setStatus(searchParams.get("status") ?? "");
@@ -53,17 +55,15 @@ function AdminPrescriptionsContent() {
       params.set("patientId", searchParams.get("patientId") as string);
     if (searchParams.get("doctorId"))
       params.set("doctorId", searchParams.get("doctorId") as string);
-    const query = params.toString();
+    params.set("page", String(page));
+    params.set("limit", String(limit));
 
     apiRequest<PaginatedResponse<Prescription>>(
-      `/admin/prescriptions${query ? `?${query}` : ""}`,
+      `/admin/prescriptions?${params.toString()}`,
       { method: "GET" },
       { auth: true },
     )
-      .then((data) => {
-        setPrescriptions(data.data);
-        setTotal(data.meta?.total ?? data.data.length);
-      })
+      .then((data) => setResponse(data))
       .catch((err) => {
         setError(
           err instanceof ApiError
@@ -74,13 +74,32 @@ function AdminPrescriptionsContent() {
       .finally(() => setLoading(false));
   }, [searchParams]);
 
+  const buildFilterParams = (overrides: Record<string, string | undefined> = {}) => {
+    const p = new URLSearchParams();
+    const s = overrides.status !== undefined ? overrides.status : status;
+    const pid = overrides.patientId !== undefined ? overrides.patientId : patientId.trim();
+    const did = overrides.doctorId !== undefined ? overrides.doctorId : doctorId.trim();
+    const q = overrides.q !== undefined ? overrides.q : search.trim();
+    const pg = overrides.page !== undefined ? overrides.page : String(page);
+    const lim = overrides.limit !== undefined ? overrides.limit : String(limit);
+    if (s) p.set("status", s);
+    if (pid) p.set("patientId", pid);
+    if (did) p.set("doctorId", did);
+    if (q) p.set("q", q);
+    if (pg && pg !== "1") p.set("page", pg);
+    if (lim && lim !== "20") p.set("limit", lim);
+    return p;
+  };
+
   const applyFilters = (e: FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (status) params.set("status", status);
-    if (patientId.trim()) params.set("patientId", patientId.trim());
-    if (doctorId.trim()) params.set("doctorId", doctorId.trim());
-    if (search.trim()) params.set("q", search.trim());
+    const params = buildFilterParams({ page: "1" });
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  };
+
+  const goPage = (n: number) => {
+    const params = buildFilterParams({ page: String(Math.max(1, n)) });
     const query = params.toString();
     router.push(query ? `${pathname}?${query}` : pathname);
   };
@@ -91,6 +110,14 @@ function AdminPrescriptionsContent() {
     setPatientId("");
     setDoctorId("");
     router.push(pathname);
+  };
+
+  const onLimitChange = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const params = buildFilterParams({ page: "1", limit: String(fd.get("limit") ?? "20") });
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
   };
 
   const downloadPdf = async (p: Prescription) => {
@@ -129,6 +156,11 @@ function AdminPrescriptionsContent() {
     !!searchParams.get("doctorId") ||
     !!searchParams.get("q");
 
+  const prescriptions = response?.data ?? [];
+  const meta = response?.meta;
+  const total = meta?.total ?? prescriptions.length;
+  const totalPages = meta?.totalPages ?? 1;
+
   // Client-side search filter on top of API results
   const filtered = search.trim()
     ? prescriptions.filter((p) => {
@@ -144,12 +176,9 @@ function AdminPrescriptionsContent() {
 
   return (
     <div className="stack-lg">
-      {/* Filters */}
-      <form
-        onSubmit={applyFilters}
-        className="row-wrap"
-        style={{ gap: 8 }}
-      >
+      {/* Per-page + Filters row */}
+      <div className="row-wrap" style={{ justifyContent: "space-between", gap: 8, alignItems: "flex-end" }}>
+        <form onSubmit={applyFilters} className="row-wrap" style={{ gap: 8 }}>
         <input
           className="input mono"
           placeholder="Patient profile id"
@@ -193,7 +222,17 @@ function AdminPrescriptionsContent() {
             Clear
           </button>
         )}
-      </form>
+        </form>
+        <form onSubmit={onLimitChange} className="row" style={{ gap: 8, alignItems: "center" }}>
+          <label className="tight" style={{ fontSize: 12, color: "var(--ink-3)" }}>Per page</label>
+          <select className="input" name="limit" defaultValue={String(limit)} style={{ width: 72 }}>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+          </select>
+          <button type="submit" className="btn btn-sm">Apply</button>
+        </form>
+      </div>
 
       {error && <div className="alert-error">{error}</div>}
 
@@ -318,6 +357,31 @@ function AdminPrescriptionsContent() {
           </>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="row" style={{ justifyContent: "center", gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={page <= 1}
+            onClick={() => goPage(page - 1)}
+          >
+            Previous
+          </button>
+          <span className="tight" style={{ alignSelf: "center", fontSize: 13 }}>
+            Page {page} of {totalPages}
+            {meta?.total !== undefined && ` · ${meta.total} total`}
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={page >= totalPages}
+            onClick={() => goPage(page + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
