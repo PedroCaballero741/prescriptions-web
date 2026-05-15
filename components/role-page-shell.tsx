@@ -18,6 +18,7 @@ const ROLE_NAV: Record<
     { key: "doctor.prescriptions", label: "Prescriptions", icon: "fileText", route: "/doctor/prescriptions" },
     { key: "doctor.patients",      label: "Patients",      icon: "users",    route: "/doctor/patients" },
     { key: "doctor.schedule",      label: "Schedule",      icon: "calendar", route: "/doctor/schedule" },
+    { key: "doctor.profile",       label: "My Profile",    icon: "user",     route: "/doctor/profile" },
   ],
   patient: [
     { key: "patient.prescriptions", label: "My prescriptions", icon: "fileText", route: "/patient/prescriptions" },

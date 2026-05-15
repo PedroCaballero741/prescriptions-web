@@ -238,7 +238,7 @@ function AdminSettingsContent() {
                     style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--accent)" }}
                   />
                   <span className="tight" style={{ fontSize: 12 }}>
-                    {notif[key] ? "On" : "Off"}
+                    {settings[key] ? "On" : "Off"}
                   </span>
                 </label>
               </div>

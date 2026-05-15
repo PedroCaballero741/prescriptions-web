@@ -566,3 +566,63 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 720px) {
   .hide-sm { display: none !important; }
 }
+
+/* ── Public Rx verification page ── */
+.rx-public-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px 60px;
+  background: var(--surface-1);
+}
+.rx-public-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface-0);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.rx-pub-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-1);
+}
+.rx-pub-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 24px 6px;
+}
+.rx-pub-section {
+  padding: 16px 24px;
+  border-top: 1px solid var(--hairline);
+}
+.rx-pub-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+}
+.rx-pub-item {
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+.rx-pub-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--hairline);
+  font-size: 11px;
+  color: var(--ink-3);
+  background: var(--surface-1);
+}
