@@ -31,36 +31,56 @@ export default function AdminSettingsPage() {
   );
 }
 
-function AdminSettingsContent() {
-  const [notif, setNotif] = useState<NotifSettings>({
-    newPrescription: true,
-    prescriptionConsumed: true,
-    dailyDigest: false,
-    weeklyReport: true,
-  });
+const SYSTEM_KEY = "rxflow_system_settings";
+const NOTIF_KEY  = "rxflow_notif_settings";
 
-  const [system, setSystem] = useState<SystemSettings>({
-    platformName: "RxFlow",
-    supportEmail: "support@rxflow.health",
-    prescriptionCodePrefix: "RX",
-    maxItemsPerPrescription: "20",
-  });
+const SYSTEM_DEFAULTS: SystemSettings = {
+  platformName: "RxFlow",
+  supportEmail: "support@rxflow.health",
+  prescriptionCodePrefix: "RX",
+  maxItemsPerPrescription: "20",
+};
+
+const NOTIF_DEFAULTS: NotifSettings = {
+  newPrescription: true,
+  prescriptionConsumed: true,
+  dailyDigest: false,
+  weeklyReport: true,
+};
+
+function loadJson<T>(key: string, defaults: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? { ...defaults, ...(JSON.parse(raw) as Partial<T>) } : defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+function AdminSettingsContent() {
+  const [notif, setNotif] = useState<NotifSettings>(() =>
+    loadJson(NOTIF_KEY, NOTIF_DEFAULTS),
+  );
+
+  const [system, setSystem] = useState<SystemSettings>(() =>
+    loadJson(SYSTEM_KEY, SYSTEM_DEFAULTS),
+  );
 
   const [savingNotif, setSavingNotif] = useState(false);
   const [savingSystem, setSavingSystem] = useState(false);
 
-  const saveNotif = async (e: React.FormEvent) => {
+  const saveNotif = (e: React.FormEvent) => {
     e.preventDefault();
     setSavingNotif(true);
-    await new Promise((r) => setTimeout(r, 600));
+    localStorage.setItem(NOTIF_KEY, JSON.stringify(notif));
     setSavingNotif(false);
     toast.success("Notification preferences saved.");
   };
 
-  const saveSystem = async (e: React.FormEvent) => {
+  const saveSystem = (e: React.FormEvent) => {
     e.preventDefault();
     setSavingSystem(true);
-    await new Promise((r) => setTimeout(r, 600));
+    localStorage.setItem(SYSTEM_KEY, JSON.stringify(system));
     setSavingSystem(false);
     toast.success("System settings saved.");
   };
