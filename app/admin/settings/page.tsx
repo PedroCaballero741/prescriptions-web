@@ -1,22 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RolePageShell } from "@/components/role-page-shell";
 import { Field, Icon } from "@/components/ui";
+import { ApiError, apiRequest } from "@/lib/http-client";
 
-type NotifSettings = {
-  newPrescription: boolean;
-  prescriptionConsumed: boolean;
-  dailyDigest: boolean;
-  weeklyReport: boolean;
-};
-
-type SystemSettings = {
+type Settings = {
   platformName: string;
   supportEmail: string;
   prescriptionCodePrefix: string;
-  maxItemsPerPrescription: string;
+  maxItemsPerPrescription: number;
+  notifNewPrescription: boolean;
+  notifConsumed: boolean;
+  notifDailyDigest: boolean;
+  notifWeeklyReport: boolean;
+};
+
+const DEFAULTS: Settings = {
+  platformName: "RxFlow",
+  supportEmail: "support@rxflow.health",
+  prescriptionCodePrefix: "RX",
+  maxItemsPerPrescription: 20,
+  notifNewPrescription: true,
+  notifConsumed: true,
+  notifDailyDigest: false,
+  notifWeeklyReport: true,
 };
 
 export default function AdminSettingsPage() {
@@ -31,59 +40,72 @@ export default function AdminSettingsPage() {
   );
 }
 
-const SYSTEM_KEY = "rxflow_system_settings";
-const NOTIF_KEY  = "rxflow_notif_settings";
-
-const SYSTEM_DEFAULTS: SystemSettings = {
-  platformName: "RxFlow",
-  supportEmail: "support@rxflow.health",
-  prescriptionCodePrefix: "RX",
-  maxItemsPerPrescription: "20",
-};
-
-const NOTIF_DEFAULTS: NotifSettings = {
-  newPrescription: true,
-  prescriptionConsumed: true,
-  dailyDigest: false,
-  weeklyReport: true,
-};
-
-function loadJson<T>(key: string, defaults: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? { ...defaults, ...(JSON.parse(raw) as Partial<T>) } : defaults;
-  } catch {
-    return defaults;
-  }
-}
-
 function AdminSettingsContent() {
-  const [notif, setNotif] = useState<NotifSettings>(() =>
-    loadJson(NOTIF_KEY, NOTIF_DEFAULTS),
-  );
-
-  const [system, setSystem] = useState<SystemSettings>(() =>
-    loadJson(SYSTEM_KEY, SYSTEM_DEFAULTS),
-  );
-
-  const [savingNotif, setSavingNotif] = useState(false);
+  const [settings, setSettings] = useState<Settings>(DEFAULTS);
+  const [loading, setLoading] = useState(true);
   const [savingSystem, setSavingSystem] = useState(false);
+  const [savingNotif, setSavingNotif] = useState(false);
 
-  const saveNotif = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingNotif(true);
-    localStorage.setItem(NOTIF_KEY, JSON.stringify(notif));
-    setSavingNotif(false);
-    toast.success("Notification preferences saved.");
-  };
+  useEffect(() => {
+    apiRequest<Settings>("/admin/settings", { method: "GET" }, { auth: true })
+      .then((data) => setSettings((prev) => ({ ...prev, ...data })))
+      .catch(() => toast.error("Could not load settings."))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const saveSystem = (e: React.FormEvent) => {
+  const saveSystem = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingSystem(true);
-    localStorage.setItem(SYSTEM_KEY, JSON.stringify(system));
-    setSavingSystem(false);
-    toast.success("System settings saved.");
+    try {
+      const updated = await apiRequest<Settings>(
+        "/admin/settings/system",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            platformName: settings.platformName,
+            supportEmail: settings.supportEmail,
+            prescriptionCodePrefix: settings.prescriptionCodePrefix,
+            maxItemsPerPrescription: Number(settings.maxItemsPerPrescription),
+          }),
+        },
+        { auth: true },
+      );
+      setSettings((prev) => ({ ...prev, ...updated }));
+      toast.success("System settings saved.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not save settings.");
+    } finally {
+      setSavingSystem(false);
+    }
   };
+
+  const saveNotif = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingNotif(true);
+    try {
+      const updated = await apiRequest<Settings>(
+        "/admin/settings/notifications",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            notifNewPrescription: settings.notifNewPrescription,
+            notifConsumed: settings.notifConsumed,
+            notifDailyDigest: settings.notifDailyDigest,
+            notifWeeklyReport: settings.notifWeeklyReport,
+          }),
+        },
+        { auth: true },
+      );
+      setSettings((prev) => ({ ...prev, ...updated }));
+      toast.success("Notification preferences saved.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not save preferences.");
+    } finally {
+      setSavingNotif(false);
+    }
+  };
+
+  if (loading) return <div className="empty"><p>Loading settings…</p></div>;
 
   return (
     <div className="stack-lg">
@@ -105,54 +127,34 @@ function AdminSettingsContent() {
             <Field label="Platform name">
               <input
                 className="input"
-                value={system.platformName}
-                onChange={(e) =>
-                  setSystem((s) => ({ ...s, platformName: e.target.value }))
-                }
+                value={settings.platformName}
+                onChange={(e) => setSettings((s) => ({ ...s, platformName: e.target.value }))}
               />
             </Field>
             <Field label="Support email">
               <input
                 className="input"
                 type="email"
-                value={system.supportEmail}
-                onChange={(e) =>
-                  setSystem((s) => ({ ...s, supportEmail: e.target.value }))
-                }
+                value={settings.supportEmail}
+                onChange={(e) => setSettings((s) => ({ ...s, supportEmail: e.target.value }))}
               />
             </Field>
-            <Field
-              label="Prescription code prefix"
-              hint="Prepended to all new prescription codes."
-            >
+            <Field label="Prescription code prefix" hint="Prepended to all new prescription codes.">
               <input
                 className="input mono"
-                value={system.prescriptionCodePrefix}
+                value={settings.prescriptionCodePrefix}
                 maxLength={8}
-                onChange={(e) =>
-                  setSystem((s) => ({
-                    ...s,
-                    prescriptionCodePrefix: e.target.value.toUpperCase(),
-                  }))
-                }
+                onChange={(e) => setSettings((s) => ({ ...s, prescriptionCodePrefix: e.target.value.toUpperCase() }))}
               />
             </Field>
-            <Field
-              label="Max medications per prescription"
-              hint="Doctors cannot exceed this limit."
-            >
+            <Field label="Max medications per prescription" hint="Doctors cannot exceed this limit.">
               <input
                 className="input"
                 type="number"
                 min={1}
                 max={100}
-                value={system.maxItemsPerPrescription}
-                onChange={(e) =>
-                  setSystem((s) => ({
-                    ...s,
-                    maxItemsPerPrescription: e.target.value,
-                  }))
-                }
+                value={settings.maxItemsPerPrescription}
+                onChange={(e) => setSettings((s) => ({ ...s, maxItemsPerPrescription: Number(e.target.value) }))}
               />
             </Field>
           </div>
@@ -182,22 +184,22 @@ function AdminSettingsContent() {
           {(
             [
               {
-                key: "newPrescription" as const,
+                key: "notifNewPrescription" as const,
                 label: "New prescription issued",
                 hint: "Alert when a doctor issues a new prescription.",
               },
               {
-                key: "prescriptionConsumed" as const,
+                key: "notifConsumed" as const,
                 label: "Prescription filled",
                 hint: "Alert when a patient marks a prescription as consumed.",
               },
               {
-                key: "dailyDigest" as const,
+                key: "notifDailyDigest" as const,
                 label: "Daily activity digest",
                 hint: "Summary email every morning at 8 AM.",
               },
               {
-                key: "weeklyReport" as const,
+                key: "notifWeeklyReport" as const,
                 label: "Weekly analytics report",
                 hint: "Full metrics report every Monday.",
               },
@@ -229,9 +231,9 @@ function AdminSettingsContent() {
                 >
                   <input
                     type="checkbox"
-                    checked={notif[key]}
+                    checked={settings[key]}
                     onChange={(e) =>
-                      setNotif((n) => ({ ...n, [key]: e.target.checked }))
+                      setSettings((s) => ({ ...s, [key]: e.target.checked }))
                     }
                     style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--accent)" }}
                   />
