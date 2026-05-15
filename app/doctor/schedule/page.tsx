@@ -26,7 +26,7 @@ function DoctorScheduleContent() {
   });
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 720 }}>
+    <div className="stack-lg">
       <div>
         <p className="page-sub">Your appointments and consultation blocks.</p>
       </div>

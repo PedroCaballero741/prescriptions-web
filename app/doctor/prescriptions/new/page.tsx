@@ -111,7 +111,7 @@ function DoctorNewPrescriptionContent() {
   };
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 860 }}>
+    <div className="stack-lg">
       <div>
         <p className="page-sub">Issue a prescription — the patient receives an alert immediately.</p>
       </div>

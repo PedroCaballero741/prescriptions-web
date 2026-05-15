@@ -66,7 +66,7 @@ function AdminSettingsContent() {
   };
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 680 }}>
+    <div className="stack-lg">
       <div>
         <p className="page-sub">
           Configure platform-wide behaviour, notifications, and integrations.
