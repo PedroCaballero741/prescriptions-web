@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RolePageShell } from "@/components/role-page-shell";
 import { Field, Icon } from "@/components/ui";
-import { ApiError, apiRequest } from "@/lib/http-client";
+import { ApiError, apiRequest, apiRequestRaw } from "@/lib/http-client";
 
 type Settings = {
   platformName: string;
@@ -45,6 +45,8 @@ function AdminSettingsContent() {
   const [loading, setLoading] = useState(true);
   const [savingSystem, setSavingSystem] = useState(false);
   const [savingNotif, setSavingNotif] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [clearingLog, setClearingLog] = useState(false);
 
   useEffect(() => {
     apiRequest<Settings>("/admin/settings", { method: "GET" }, { auth: true })
@@ -273,46 +275,74 @@ function AdminSettingsContent() {
           </h2>
         </div>
         <div className="card-body stack" style={{ gap: 0 }}>
-          {[
-            {
-              label: "Export all data",
-              hint: "Download a full CSV export of all prescriptions and users.",
-              action: "Export",
-              icon: "download",
-            },
-            {
-              label: "Clear audit log",
-              hint: "Permanently delete all audit log entries older than 1 year.",
-              action: "Clear",
-              icon: "trash",
-            },
-          ].map(({ label, hint, action, icon }, i, arr) => (
-            <div key={label}>
-              <div
-                className="row"
-                style={{
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "14px 0",
+          {/* Export */}
+          <div>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center", padding: "14px 0" }}>
+              <div>
+                <div style={{ fontWeight: 500 }}>Export all data</div>
+                <div className="tight" style={{ marginTop: 2 }}>Download a full CSV export of all prescriptions and users.</div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost btn-danger"
+                disabled={exporting}
+                onClick={async () => {
+                  setExporting(true);
+                  try {
+                    const res = await apiRequestRaw("/admin/export", { method: "GET" }, { auth: true });
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `rxflow-export-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success("Export downloaded.");
+                  } catch {
+                    toast.error("Export failed.");
+                  } finally {
+                    setExporting(false);
+                  }
                 }}
               >
-                <div>
-                  <div style={{ fontWeight: 500 }}>{label}</div>
-                  <div className="tight" style={{ marginTop: 2 }}>{hint}</div>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost btn-danger"
-                  onClick={() =>
-                    toast.info(`${action} is not yet available in this environment.`)
-                  }
-                >
-                  <Icon name={icon} /> {action}
-                </button>
-              </div>
-              {i < arr.length - 1 && <div className="hair" />}
+                <Icon name="download" /> {exporting ? "Exporting…" : "Export"}
+              </button>
             </div>
-          ))}
+            <div className="hair" />
+          </div>
+
+          {/* Clear audit log */}
+          <div>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center", padding: "14px 0" }}>
+              <div>
+                <div style={{ fontWeight: 500 }}>Clear audit log</div>
+                <div className="tight" style={{ marginTop: 2 }}>Permanently delete all audit log entries older than 1 year.</div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost btn-danger"
+                disabled={clearingLog}
+                onClick={async () => {
+                  if (!confirm("Delete all audit log entries older than 1 year? This cannot be undone.")) return;
+                  setClearingLog(true);
+                  try {
+                    const result = await apiRequest<{ deleted: number }>(
+                      "/admin/audit-log",
+                      { method: "DELETE" },
+                      { auth: true },
+                    );
+                    toast.success(`Cleared ${result.deleted} audit log ${result.deleted === 1 ? "entry" : "entries"}.`);
+                  } catch {
+                    toast.error("Could not clear audit log.");
+                  } finally {
+                    setClearingLog(false);
+                  }
+                }}
+              >
+                <Icon name="trash" /> {clearingLog ? "Clearing…" : "Clear"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

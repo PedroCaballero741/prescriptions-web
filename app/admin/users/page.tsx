@@ -54,6 +54,7 @@ function AdminUsersContent() {
   const [cSpecialty, setCSpecialty] = useState("");
   const [cBirth, setCBirth] = useState("");
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     setFilterRole(roleQ);
@@ -138,6 +139,20 @@ function AdminUsersContent() {
       toast.error(msg);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const onDelete = async (id: string, name: string) => {
+    if (!confirm(`Soft-delete "${name}"? They will no longer be able to log in.`)) return;
+    setDeletingId(id);
+    try {
+      await apiRequest(`/users/${id}`, { method: "DELETE" }, { auth: true });
+      toast.success(`${name} deleted.`);
+      setList((prev) => prev ? { ...prev, data: prev.data.filter((u) => u.id !== id) } : prev);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not delete user.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -234,6 +249,7 @@ function AdminUsersContent() {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Created</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -243,6 +259,17 @@ function AdminUsersContent() {
                     <td className="tight">{u.email}</td>
                     <td><Badge>{u.role}</Badge></td>
                     <td className="tight mono" style={{ fontSize: 12 }}>{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-ghost btn-danger"
+                        disabled={deletingId === u.id}
+                        onClick={() => onDelete(u.id, u.name)}
+                        title="Soft-delete user"
+                      >
+                        <Icon name="trash" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
