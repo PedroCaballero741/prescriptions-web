@@ -43,7 +43,9 @@ export default function LoginPage() {
       setError(
         submitError instanceof ApiError
           ? submitError.message
-          : "Unexpected error. Please try again.",
+          : submitError instanceof Error
+            ? submitError.message
+            : "Unexpected error. Please try again.",
       );
     } finally {
       setLoading(false);

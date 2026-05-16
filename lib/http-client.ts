@@ -56,10 +56,16 @@ export async function apiRequestRaw(
     headers.set("Authorization", `Bearer ${session.accessToken}`);
   }
 
-  const response = await fetch(resolveUrl(path), {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(resolveUrl(path), {
+      ...init,
+      headers,
+    });
+  } catch (networkError) {
+    const msg = networkError instanceof Error ? networkError.message : "Network error";
+    throw new ApiError(0, `Cannot reach the server: ${msg}`);
+  }
 
   if (response.status === 401 && auth && retryOnUnauthorized) {
     const refreshed = await refreshSession();
